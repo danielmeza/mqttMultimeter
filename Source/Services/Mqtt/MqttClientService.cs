@@ -119,15 +119,10 @@ public sealed class MqttClientService
     public int PacketBufferMs { get; private set; } = 500;
 
     /// <summary>
-    /// Maximum items kept per UI-bound list. Subscribers trim oldest items
-    /// in batches of <see cref="TrimBatchSize"/> when this limit is exceeded.
+    /// Maximum items kept per UI-bound list. When exceeded the oldest items
+    /// are removed so the list size matches this limit exactly.
     /// </summary>
     public int MaxUiItems { get; private set; } = 150_000;
-
-    /// <summary>
-    /// Number of oldest items removed at once when a UI list exceeds <see cref="MaxUiItems"/>.
-    /// </summary>
-    public int TrimBatchSize { get; private set; } = 500;
 
     /// <summary>
     /// Interval (ms) at which the status-bar counters are refreshed.
@@ -523,7 +518,6 @@ public sealed class MqttClientService
 
         // Store UI list limits
         MaxUiItems = Math.Max(1_000, options.MaxUiItems);
-        TrimBatchSize = Math.Max(1, options.TrimBatchSize);
         CounterUpdateMs = Math.Max(50, options.CounterUpdateMs);
 
         // Reset counters for new session
@@ -682,11 +676,11 @@ public sealed class MqttClientService
 
         // Notify subscribers that new streams are available
         MessageStreamConnected?.Invoke(new StreamConnectedEventArgs<MqttApplicationMessageReceivedEventArgs>(
-            _messageStream, MessageBufferMs, MaxUiItems, TrimBatchSize, CounterUpdateMs));
+            _messageStream, MessageBufferMs, MaxUiItems, CounterUpdateMs));
         PacketStreamConnected?.Invoke(new StreamConnectedEventArgs<InspectMqttPacketEventArgs>(
-            _packetStream, PacketBufferMs, MaxUiItems, TrimBatchSize, CounterUpdateMs));
+            _packetStream, PacketBufferMs, MaxUiItems, CounterUpdateMs));
         LogStreamConnected?.Invoke(new StreamConnectedEventArgs<MqttNetLogMessagePublishedEventArgs>(
-            _logStream, MessageBufferMs, MaxUiItems, TrimBatchSize, CounterUpdateMs));
+            _logStream, MessageBufferMs, MaxUiItems, CounterUpdateMs));
     }
 
     /// <summary>

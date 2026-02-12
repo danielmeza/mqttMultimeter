@@ -65,14 +65,9 @@ public sealed class LogPageViewModel : BasePageViewModel
         Exception = eventArgs.LogMessage.Exception?.ToString()
     };
 
-    void InsertLogBatch(IList<LogItemViewModel> batch, int maxUiItems, int trimBatchSize)
+    void InsertLogBatch(IList<LogItemViewModel> batch, int maxUiItems)
     {
-        if (!_isRecordingEnabled)
-        {
-            return;
-        }
-
-        _itemsSource.AddRangeAndTrim(batch, maxUiItems, trimBatchSize);
+        _itemsSource.AddRangeAndTrim(batch, maxUiItems);
     }
 
     void OnLogStreamConnected(StreamConnectedEventArgs<MqttNetLogMessagePublishedEventArgs> args)
@@ -81,11 +76,12 @@ public sealed class LogPageViewModel : BasePageViewModel
         _streamCleanup = new CompositeDisposable();
 
         var subscription = args.Stream
+            .Where(_ => IsRecordingEnabled)
             .Select(MapLogEvent)                        // transform on stream thread
             .Buffer(TimeSpan.FromMilliseconds(args.BufferMs))
             .Where(batch => batch.Count > 0)
             .ObserveOn(RxApp.MainThreadScheduler)       // only the insert hits the UI thread
-            .Subscribe(batch => InsertLogBatch(batch, args.MaxUiItems, args.TrimBatchSize));
+            .Subscribe(batch => InsertLogBatch(batch, args.MaxUiItems));
 
         _streamCleanup.Add(subscription);
     }

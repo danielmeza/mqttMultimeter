@@ -11,5 +11,4 @@ public sealed record StreamConnectedEventArgs<T>(
     IObservable<T> Stream,
     int BufferMs,
     int MaxUiItems,
-    int TrimBatchSize,
     int CounterUpdateMs);

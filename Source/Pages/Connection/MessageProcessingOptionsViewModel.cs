@@ -114,19 +114,9 @@ public sealed class MessageProcessingOptionsViewModel : BaseViewModel
 
     /// <summary>
     /// Maximum items kept in each UI-bound list (Inflight, Packet Inspector, Log).
-    /// When exceeded the oldest items are removed in batches of <see cref="TrimBatchSize"/>.
+    /// When exceeded the oldest items are removed so the list stays at exactly this limit.
     /// </summary>
     public int MaxUiItems
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    }
-
-    /// <summary>
-    /// Number of oldest items removed at once when a UI-bound list exceeds
-    /// <see cref="MaxUiItems"/>. Removing in batches avoids per-item layout churn.
-    /// </summary>
-    public int TrimBatchSize
     {
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
@@ -160,7 +150,6 @@ public sealed class MessageProcessingOptionsViewModel : BaseViewModel
         MessageBufferMs = profile.MessageBufferMs;
         PacketBufferMs = profile.PacketBufferMs;
         MaxUiItems = profile.MaxUiItems;
-        TrimBatchSize = profile.TrimBatchSize;
         CounterUpdateMs = profile.CounterUpdateMs;
     }
 }

@@ -19,7 +19,6 @@ public sealed record MessageProcessingProfile(
     int MessageBufferMs,
     int PacketBufferMs,
     int MaxUiItems,
-    int TrimBatchSize,
     int CounterUpdateMs)
 {
     /// <summary>All built-in profiles (from docs/high-throughput-guide.md).</summary>
@@ -35,7 +34,6 @@ public sealed record MessageProcessingProfile(
             MessageBufferMs: 50,
             PacketBufferMs: 50,
             MaxUiItems: 150_000,
-            TrimBatchSize: 500,
             CounterUpdateMs: 200),
 
         new("\u2264 5K msg/s  (Medium)",
@@ -48,7 +46,6 @@ public sealed record MessageProcessingProfile(
             MessageBufferMs: 150,
             PacketBufferMs: 150,
             MaxUiItems: 150_000,
-            TrimBatchSize: 500,
             CounterUpdateMs: 200),
 
         new("8K+ msg/s  (High)",
@@ -61,7 +58,6 @@ public sealed record MessageProcessingProfile(
             MessageBufferMs: 300,
             PacketBufferMs: 300,
             MaxUiItems: 150_000,
-            TrimBatchSize: 500,
             CounterUpdateMs: 200),
 
         new("Custom",
@@ -74,7 +70,6 @@ public sealed record MessageProcessingProfile(
             MessageBufferMs: 200,
             PacketBufferMs: 500,
             MaxUiItems: 150_000,
-            TrimBatchSize: 500,
             CounterUpdateMs: 200)
     ];
 

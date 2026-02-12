@@ -86,9 +86,10 @@ public sealed class InflightPageViewModel : BasePageViewModel
         var newItem = CreateItemViewModel(message);
  
         _itemsSource.Add(newItem);
-        if (_itemsSource.Count > _mqttClientService.MaxUiItems)
+        var overflow = _itemsSource.Count - _mqttClientService.MaxUiItems;
+        if (overflow > 0)
         {
-            _itemsSource.RemoveRange(0, Math.Min(_mqttClientService.TrimBatchSize, _itemsSource.Count));
+            _itemsSource.RemoveRange(0, overflow);
         }
     }
 
@@ -141,16 +142,11 @@ public sealed class InflightPageViewModel : BasePageViewModel
         return itemViewModel;
     }
 
-    void InsertItemBatch(IList<InflightPageItemViewModel> batch, int maxUiItems, int trimBatchSize)
+    void InsertItemBatch(IList<InflightPageItemViewModel> batch, int maxUiItems)
     {
-        if (!_isRecordingEnabled)
-        {
-            return;
-        }
-
         try
         {
-            _itemsSource.AddRangeAndTrim(batch, maxUiItems, trimBatchSize);
+            _itemsSource.AddRangeAndTrim(batch, maxUiItems);
         }
         catch (Exception e)
         {
@@ -170,7 +166,7 @@ public sealed class InflightPageViewModel : BasePageViewModel
             .Where(batch => batch.Count > 0)
             .ObserveOn(RxApp.MainThreadScheduler)                   // only the insert hits the UI thread
             .Subscribe(
-                batch => InsertItemBatch(batch, args.MaxUiItems, args.TrimBatchSize),
+                batch => InsertItemBatch(batch, args.MaxUiItems),
                 ex => _logger.LogError(ex, "Error in message stream."));
 
         _streamCleanup.Add(subscription);

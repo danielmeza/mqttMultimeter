@@ -127,14 +127,9 @@ public sealed class PacketInspectorPageViewModel : BasePageViewModel
         IsInbound = args.Direction == MqttPacketFlowDirection.Inbound
     };
 
-    void InsertPacketBatch(IList<PacketViewModel> batch, int maxUiItems, int trimBatchSize)
+    void InsertPacketBatch(IList<PacketViewModel> batch, int maxUiItems)
     {
-        if (!_isRecordingEnabled)
-        {
-            return;
-        }
-
-        _packetsSource.AddRangeAndTrim(batch, maxUiItems, trimBatchSize);
+        _packetsSource.AddRangeAndTrim(batch, maxUiItems);
     }
 
     void OnPacketStreamConnected(StreamConnectedEventArgs<InspectMqttPacketEventArgs> args)
@@ -143,11 +138,12 @@ public sealed class PacketInspectorPageViewModel : BasePageViewModel
         _streamCleanup = new CompositeDisposable();
 
         var subscription = args.Stream
+            .Where(_ => IsRecordingEnabled)
             .Select(MapPacket)                          // transform on stream thread
             .Buffer(TimeSpan.FromMilliseconds(args.BufferMs))
             .Where(batch => batch.Count > 0)
             .ObserveOn(RxApp.MainThreadScheduler)       // only the insert hits the UI thread
-            .Subscribe(batch => InsertPacketBatch(batch, args.MaxUiItems, args.TrimBatchSize));
+            .Subscribe(batch => InsertPacketBatch(batch, args.MaxUiItems));
 
         _streamCleanup.Add(subscription);
     }

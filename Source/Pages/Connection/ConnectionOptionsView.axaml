@@ -344,17 +344,6 @@
                                        Value="{Binding MessageProcessingOptions.MaxUiItems}"
                                        ToolTip.Tip="Higher values keep more history but consume more memory and slow down the UI." />
 
-                        <Label Grid.Column="3"
-                               Classes="caption"
-                               Content="Trim batch size"
-                               ToolTip.Tip="Number of oldest items removed at once when a UI list exceeds the maximum. Larger batches reduce trim frequency but cause bigger single-frame layout work." />
-                        <NumericUpDown Grid.Column="4"
-                                       Minimum="1"
-                                       Maximum="10000"
-                                       Classes="value"
-                                       Value="{Binding MessageProcessingOptions.TrimBatchSize}"
-                                       ToolTip.Tip="Removing items in batches avoids per-item layout churn." />
-
                         <Label Grid.Column="0"
                                controls:AutoGrid.IsNextRow="True"
                                Classes="caption"

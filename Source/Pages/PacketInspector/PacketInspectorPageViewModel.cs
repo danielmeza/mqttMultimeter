@@ -51,8 +51,18 @@ public sealed class PacketInspectorPageViewModel : BasePageViewModel
     public PacketViewModel? SelectedPacket
     {
         get => _selectedPacket;
-        set => this.RaiseAndSetIfChanged(ref _selectedPacket, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedPacket, value);
+            this.RaisePropertyChanged(nameof(SelectedPacketData));
+        }
     }
+
+    /// <summary>
+    /// Null-safe accessor for <see cref="SelectedPacket"/>.<see cref="PacketViewModel.Data"/>.
+    /// Avoids compiled binding errors when no packet is selected.
+    /// </summary>
+    public byte[]? SelectedPacketData => _selectedPacket?.Data;
 
     public void StartStopRecording()
     {

@@ -132,7 +132,7 @@
                 <controls:BufferInspectorView Grid.Row="1"
                                               Margin="10"
                                               SelectedFormatName="RAW"
-                                              Buffer="{CompiledBinding SelectedPacket.Data, FallbackValue={x:Null}}" />
+                                              Buffer="{CompiledBinding SelectedPacketData}" />
 
             </Grid>
 

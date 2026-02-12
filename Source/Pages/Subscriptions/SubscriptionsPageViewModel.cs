@@ -40,6 +40,7 @@ public sealed class SubscriptionsPageViewModel : BasePageViewModel
     {
         try
         {
+            await Task.Yield();
             var response = await _mqttClientService.Subscribe(item);
             item.Response.ApplyResponse(response);
         }

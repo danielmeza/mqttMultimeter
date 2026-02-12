@@ -9,7 +9,7 @@
     <Design.DataContext>
         <main:MainViewModel />
     </Design.DataContext>
-    
+
     <UserControl.Styles>
         <Style Selector="Border.status_bar_connected">
             <Setter Property="Background"
@@ -26,6 +26,15 @@
                     Value="Orange" />
             <Setter Property="TextBlock.Foreground"
                     Value="Black" />
+        </Style>
+
+        <Style Selector="TextBlock.status_warning">
+            <Setter Property="Background"
+                    Value="DarkRed" />
+            <Setter Property="Foreground"
+                    Value="White" />
+            <Setter Property="Padding"
+                    Value="4,0" />
         </Style>
     </UserControl.Styles>
 
@@ -113,27 +122,85 @@
                     Classes.status_bar_not_connected="{Binding !ConnectionPage.IsConnected}"
                     Grid.Row="1">
 
-                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
-                    <!-- The connection status -->
-                    <Border Grid.Column="0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Not connected"
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                    <!-- The connection selector and actions -->
+                    <Border Grid.Column="0"
+                            Margin="10,0,10,0">
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Stretch">
+                            <TextBlock Text="Connection:"
+                                       Margin="0,0,5,0"
+                                       VerticalAlignment="Center" />
+                            <ComboBox Width="220"
+                                      VerticalAlignment="Stretch"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      ItemsSource="{Binding ConnectionPage.Items.Collection}"
+                                      SelectedItem="{Binding ConnectionPage.Items.SelectedItem}"
+                                      IsVisible="{Binding !ConnectionPage.IsConnected}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock IsVisible="{Binding ConnectionPage.IsConnected}"
+                                       Text="{Binding ConnectionPage.Items.SelectedItem.Name}"
+                                       Classes="value"
+                                       Width="220" />
+                            <ToggleButton x:Name="ConnectionToggle"
+                                          Margin="10,0,0,0"
+                                          HorizontalContentAlignment="Center"
+                                          IsEnabled="{Binding !ConnectionPage.IsConnecting}"
+                                          IsChecked="{Binding ConnectionPage.IsConnected, Mode=OneWay}"
+                                          Click="OnConnectionToggleClicked">
+                                <Grid ColumnDefinitions="Auto,Auto"
+                                      HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal"
+                                                IsVisible="{Binding #ConnectionToggle.IsChecked}">
+                                        <PathIcon Data="{StaticResource plug_disconnected_regular}"
+                                                  Width="14"
+                                                  Height="14" />
+                                        <TextBlock Margin="6,0,0,0"
+                                                   Text="Disconnect" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal"
+                                                IsVisible="{Binding !#ConnectionToggle.IsChecked}">
+                                        <PathIcon Data="{StaticResource checkmark_circle_regular}"
+                                                  Width="14"
+                                                  Height="14" />
+                                        <TextBlock Margin="6,0,0,0"
+                                                   Text="Connect" />
+                                    </StackPanel>
+                                </Grid>
+                            </ToggleButton>
+                            <!-- Disconnection reason -->
+                            <TextBlock Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="{CompiledBinding ConnectionPage.DisconnectedReason.Reason}"
                                        IsVisible="{CompiledBinding !ConnectionPage.IsConnected}" />
-                            <TextBlock Text="Connected"
-                                       IsVisible="{CompiledBinding ConnectionPage.IsConnected}" />
-
-                            <TextBlock Margin="10,0,0,0"
-                                       Text="{CompiledBinding ConnectionPage.DisconnectedReason.Reason}" />
-                            <TextBlock Margin="10,0,0,0"
-                                       Text="{CompiledBinding ConnectionPage.DisconnectedReason.AdditionalInformation}" />
+                            <TextBlock Margin="5,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="{CompiledBinding ConnectionPage.DisconnectedReason.AdditionalInformation}"
+                                       IsVisible="{CompiledBinding !ConnectionPage.IsConnected}" />
                         </StackPanel>
                     </Border>
 
-                    <Separator Grid.Column="2" />
+                    <Separator Grid.Column="1" />
 
                     <!-- The count of inflight items -->
-                    <Border Grid.Column="3">
-                        <TextBlock Text="{CompiledBinding Counter, StringFormat={}{0} messages received}" />
+                    <Border Grid.Column="2">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{CompiledBinding ReceivedCounter, StringFormat={}{0} messages received}" />
+                            <TextBlock Margin="10,0,0,0"
+                                       Text="{CompiledBinding NotifiedCounter, StringFormat={}Notified {0}}" />
+                            <TextBlock Margin="10,0,0,0"
+                                       Text="{CompiledBinding BufferedCounter, StringFormat={}Buffered {0}}" />
+                            <TextBlock Margin="10,0,0,0"
+                                       IsVisible="{CompiledBinding ShowDroppedCounter}"
+                                       Classes.status_warning="{CompiledBinding HasDroppedMessages}"
+                                       Text="{CompiledBinding DroppedCounter, StringFormat={}Dropped {0}}" />
+                        </StackPanel>
                     </Border>
 
                     <!-- The version string -->

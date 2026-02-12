@@ -10,7 +10,7 @@ public sealed class PacketViewModel : BaseViewModel
 
     public long Length { get; init; }
     
-    public int Number { get; init; }
+    public int Number { get; set; }
 
     public string? Type { get; init; }
 }

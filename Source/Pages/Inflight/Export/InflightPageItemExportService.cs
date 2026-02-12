@@ -55,7 +55,8 @@ public sealed class InflightPageItemExportService
 
         foreach (var message in export.Messages)
         {
-            await inflightPage.AppendMessage(CreateMessage(message));
+            await Task.Yield(); // Yield so the UI can switch priority to the user interaction. 
+            inflightPage.AppendMessage(CreateMessage(message));
         }
     }
 

@@ -33,6 +33,7 @@
                         Classes="image_button"
                         MinWidth="100"
                         Margin="0,0,10,0"
+                        IsEnabled="{Binding OwnerPage.CanConnect}"
                         Command="{Binding Connect, Mode=OneTime}">
                     <StackPanel>
                         <PathIcon Data="{StaticResource checkmark_circle_regular}" />
@@ -41,6 +42,7 @@
                 </Button>
                 <Button Classes="image_button"
                         MinWidth="100"
+                        IsEnabled="{Binding OwnerPage.CanDisconnect}"
                         Command="{Binding Disconnect, Mode=OneTime}">
                     <StackPanel>
                         <PathIcon Data="{StaticResource plug_disconnected_regular}" />

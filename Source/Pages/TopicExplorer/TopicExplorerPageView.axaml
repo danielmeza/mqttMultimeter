@@ -10,6 +10,13 @@
     <Design.DataContext>
         <topicExplorer:TopicExplorerPageViewModel />
     </Design.DataContext>
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="TopicExplorerNodeCell"
+                      x:DataType="topicExplorer:TopicExplorerTreeNodeViewModel">
+            <ContentPresenter Content="{CompiledBinding}" />
+        </DataTemplate>
+    </UserControl.Resources>
     
     <controls:Overlay IsOverlayVisible="{CompiledBinding Path=OverlayContent, Converter={x:Static ObjectConverters.IsNotNull}}"
                       OverlayContent="{CompiledBinding OverlayContent}">
@@ -29,7 +36,8 @@
 
                     <!-- The Enable/Disable button -->
                     <ToggleButton Classes="tool_bar_button"
-                                  IsChecked="{CompiledBinding IsRecordingEnabled}"
+                                  IsChecked="{CompiledBinding IsRecordingEnabled, Mode=OneWay}"
+                                    Command="{CompiledBinding StartStopRecording, Mode=OneTime}"
                                   ToolTip.Tip="Enable or disable recording">
                         <PathIcon Data="{StaticResource record_regular}" />
                     </ToggleButton>
@@ -70,31 +78,12 @@
                     </ToggleButton>
                 </StackPanel>
 
-                <TreeView Background="Transparent"
-                          Grid.Row="1"
-                          AutoScrollToSelectedItem="False"
-                          SelectionMode="Single"
-                          x:Name="PART_Items"
-                          SelectedItem="{CompiledBinding SelectedNode, Mode=TwoWay}"
-                          ItemsSource="{CompiledBinding Nodes, Mode=OneTime}"
-                          Grid.Column="0">
-                    <TreeView.ItemTemplate>
-                        <TreeDataTemplate ItemsSource="{CompiledBinding Nodes}">
-                            <ContentPresenter Content="{CompiledBinding}" />
-                        </TreeDataTemplate>
-                    </TreeView.ItemTemplate>
-                    <TreeView.Styles>
-                        <Style Selector="TreeViewItem">
-                            <Setter Property="IsExpanded"
-                                    x:DataType="topicExplorer:TopicExplorerTreeNodeViewModel"
-                                    Value="{CompiledBinding Path=IsExpanded, Mode=TwoWay}" />
-                        </Style>
-                        <Style Selector="TreeViewItem.highlight">
-                            <Setter Property="Background"
-                                    Value="#2200EE00" />
-                        </Style>
-                    </TreeView.Styles>
-                </TreeView>
+                <TreeDataGrid Background="Transparent"
+                              Grid.Row="1"
+                              x:Name="PART_Items"
+                              Source="{CompiledBinding TreeSource}"
+                              ShowColumnHeaders="False"
+                              Grid.Column="0" />
 
                 <!-- No data overlay -->
                 <Grid Grid.Column="0"
@@ -130,8 +119,8 @@
             <Grid Grid.Column="2">
 
                 <!-- No data overlay -->
-                <Grid VerticalAlignment="Stretch"
-                      IsVisible="{Binding ElementName=PART_Items, Path=SelectedItem.Item, Converter={x:Static converters:ObjectConverter.IsNull}, FallbackValue={x:Null}}"
+                <Grid x:Name="PART_DetailOverlay"
+                      VerticalAlignment="Stretch"
                       HorizontalAlignment="Stretch">
                     <StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center">
@@ -143,7 +132,7 @@
                     </StackPanel>
                 </Grid>
 
-                <ContentPresenter Content="{Binding ElementName=PART_Items, Path=SelectedItem.Item, FallbackValue={x:Null}}" />
+                <ContentPresenter x:Name="PART_DetailContent" />
             </Grid>
         </Grid>
 

@@ -35,14 +35,16 @@ public sealed class AutoGrid : Grid
 
         _cellArrangementPending = true;
 
-        Dispatcher.UIThread.Post(() =>
+        Dispatcher.UIThread.Post(
+            state =>
             {
-                _cellArrangementPending = false;
+                var grid = (AutoGrid)state!;
+                grid._cellArrangementPending = false;
 
                 var currentRow = 0;
                 var currentColumn = 0;
 
-                foreach (var child in Children)
+                foreach (var child in grid.Children)
                 {
                     if (child is Control control)
                     {
@@ -65,15 +67,16 @@ public sealed class AutoGrid : Grid
                     }
                 }
 
-                if (RowDefinitions.Count - 1 != currentRow)
+                if (grid.RowDefinitions.Count - 1 != currentRow)
                 {
-                    RowDefinitions.Clear();
+                    grid.RowDefinitions.Clear();
                     for (var i = 0; i <= currentRow; i++)
                     {
-                        RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
                     }
                 }
             },
+            this,
             DispatcherPriority.Render);
     }
 }

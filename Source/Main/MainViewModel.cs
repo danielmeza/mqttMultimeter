@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using mqttMultimeter.Common;
 using mqttMultimeter.Pages.Connection;
@@ -10,6 +11,7 @@ using mqttMultimeter.Pages.Publish;
 using mqttMultimeter.Pages.Subscriptions;
 using mqttMultimeter.Pages.TopicExplorer;
 using mqttMultimeter.Services.Mqtt;
+using MQTTnet;
 using ReactiveUI;
 
 namespace mqttMultimeter.Main;
@@ -18,7 +20,13 @@ public sealed class MainViewModel : BaseViewModel
 {
     readonly MqttClientService _mqttClientService;
 
-    int _counter;
+    DispatcherTimer? _counterTimer;
+    long _receivedCounter;
+    long _notifiedCounter;
+    long _bufferedCounter;
+    long _droppedCounter;
+    bool _showDroppedCounter;
+    bool _hasDroppedMessages;
     object? _overlayContent;
 
     public MainViewModel(ConnectionPageViewModel connectionPage,
@@ -45,19 +53,50 @@ public sealed class MainViewModel : BaseViewModel
         InflightPage.RepeatMessageRequested += item => PublishPage.RepeatMessage(item);
         topicExplorerPage.RepeatMessageRequested += item => PublishPage.RepeatMessage(item);
 
-        // Update the counter with a timer. There is no need to trigger a binding
-        // for each counter increment.
-        DispatcherTimer.Run(UpdateCounter, TimeSpan.FromSeconds(1));
+        // Update counters at the same frequency as the message batch buffer.
+        // The observable is created on connect and disposed on disconnect.
+        _mqttClientService.MessageStreamConnected += OnCounterStreamConnected;
+        _mqttClientService.MessageStreamDisconnected += OnCounterStreamDisconnected;
     }
 
     public event EventHandler? ActivatePageRequested;
 
     public ConnectionPageViewModel ConnectionPage { get; }
 
-    public int Counter
+    public long ReceivedCounter
     {
-        get => _counter;
-        set => this.RaiseAndSetIfChanged(ref _counter, value);
+        get => _receivedCounter;
+        set => this.RaiseAndSetIfChanged(ref _receivedCounter, value);
+    }
+
+    public long NotifiedCounter
+    {
+        get => _notifiedCounter;
+        set => this.RaiseAndSetIfChanged(ref _notifiedCounter, value);
+    }
+
+    public long BufferedCounter
+    {
+        get => _bufferedCounter;
+        set => this.RaiseAndSetIfChanged(ref _bufferedCounter, value);
+    }
+
+    public long DroppedCounter
+    {
+        get => _droppedCounter;
+        set => this.RaiseAndSetIfChanged(ref _droppedCounter, value);
+    }
+
+    public bool ShowDroppedCounter
+    {
+        get => _showDroppedCounter;
+        set => this.RaiseAndSetIfChanged(ref _showDroppedCounter, value);
+    }
+
+    public bool HasDroppedMessages
+    {
+        get => _hasDroppedMessages;
+        set => this.RaiseAndSetIfChanged(ref _hasDroppedMessages, value);
     }
 
     public InflightPageViewModel InflightPage { get; }
@@ -86,9 +125,72 @@ public sealed class MainViewModel : BaseViewModel
         return page;
     }
 
-    bool UpdateCounter()
+    void OnCounterStreamConnected(StreamConnectedEventArgs<MqttApplicationMessageReceivedEventArgs> args)
     {
-        Counter = _mqttClientService.ReceivedMessagesCount;
-        return true;
+        if (_counterTimer is not null)
+        {
+            _counterTimer.Tick -= OnCounterTimerTick;
+            _counterTimer.Stop();
+        }
+
+        _counterTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(args.CounterUpdateMs)
+        };
+        _counterTimer.Tick += OnCounterTimerTick;
+        _counterTimer.Start();
+    }
+
+    void OnCounterStreamDisconnected()
+    {
+        if (_counterTimer is not null)
+        {
+            _counterTimer.Tick -= OnCounterTimerTick;
+            _counterTimer.Stop();
+            _counterTimer = null;
+        }
+
+        // Final update to flush the last counter values.
+        UpdateCounter();
+    }
+
+    void OnCounterTimerTick(object? sender, EventArgs e) => UpdateCounter();
+
+    void UpdateCounter()
+    {
+        ReceivedCounter = _mqttClientService.ReceivedMessagesCount;
+        NotifiedCounter = _mqttClientService.NotifiedMessagesCount;
+        BufferedCounter = _mqttClientService.BufferedMessagesCount;
+        DroppedCounter = _mqttClientService.DroppedMessagesCount;
+        HasDroppedMessages = DroppedCounter > 0;
+
+        var selectedItem = ConnectionPage.Items.SelectedItem;
+        if (selectedItem == null)
+        {
+            ShowDroppedCounter = false;
+        }
+        else
+        {
+            var options = selectedItem.MessageProcessingOptions;
+            ShowDroppedCounter = options.UseBoundedChannel && options.SelectedFullMode.Value != System.Threading.Channels.BoundedChannelFullMode.Wait;
+        }
+    }
+
+    public async Task ToggleConnectionAsync()
+    {
+        var selectedItem = ConnectionPage.Items.SelectedItem;
+        if (selectedItem == null || ConnectionPage.IsConnecting)
+        {
+            return;
+        }
+
+        if (ConnectionPage.IsConnected)
+        {
+            await selectedItem.Disconnect().ConfigureAwait(true);
+        }
+        else
+        {
+            await selectedItem.Connect().ConfigureAwait(true);
+        }
     }
 }

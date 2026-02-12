@@ -222,6 +222,154 @@
                       Padding="0">
                 <controls:UserPropertiesView DataContext="{Binding SessionOptions.UserProperties}" />
             </Expander>
+
+            <Expander Header="Message Processing"
+                      Margin="0,10,0,0">
+                <StackPanel IsEnabled="{Binding !OwnerPage.IsConnected}">
+                    <!-- Profile selector – always editable when disconnected -->
+                    <controls:AutoGrid ColumnDefinitions="Auto,*,10,Auto,*">
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Profile"
+                               ToolTip.Tip="Select a preconfigured throughput profile or choose Custom to edit all settings manually." />
+                        <ComboBox Grid.Column="1"
+                                  Classes="value"
+                                  ItemsSource="{Binding MessageProcessingOptions.Profiles}"
+                                  SelectedItem="{Binding MessageProcessingOptions.SelectedProfile}"
+                                  ToolTip.Tip="Applies recommended channel, delay, and buffer settings for the selected throughput tier.">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </controls:AutoGrid>
+
+                    <!-- Detailed settings – disabled when a preset profile is active -->
+                    <controls:AutoGrid ColumnDefinitions="Auto,*,10,Auto,*"
+                                       IsEnabled="{Binding MessageProcessingOptions.IsCustomProfile}"
+                                       Margin="0,5,0,0">
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Use bounded channel"
+                               ToolTip.Tip="When enabled, message/packet queues have a fixed capacity. This protects memory but can drop or delay data if the producer is faster than the consumer." />
+                        <CheckBox Grid.Column="1"
+                                  IsChecked="{Binding MessageProcessingOptions.UseBoundedChannel}"
+                                  ToolTip.Tip="Enable fixed-size queues. Disable for unbounded queues that can grow with memory usage." />
+
+                        <Label Grid.Column="3"
+                               Classes="caption"
+                               Content="Capacity"
+                               ToolTip.Tip="Maximum items buffered per channel. Higher values reduce drops but increase memory usage." />
+                        <NumericUpDown Grid.Column="4"
+                                       Minimum="1"
+                                       Classes="value"
+                                       IsEnabled="{Binding MessageProcessingOptions.UseBoundedChannel}"
+                                       Value="{Binding MessageProcessingOptions.Capacity}"
+                                       ToolTip.Tip="Queue size for both messages and packet inspections when bounded." />
+
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Full mode"
+                               ToolTip.Tip="Behavior when the bounded channel is full: wait (backpressure) or drop newest/oldest/write." />
+                        <ComboBox Grid.Column="1"
+                                  Classes="value"
+                                  IsEnabled="{Binding MessageProcessingOptions.UseBoundedChannel}"
+                                  ItemsSource="{Binding MessageProcessingOptions.FullModes}"
+                                  SelectedItem="{Binding MessageProcessingOptions.SelectedFullMode}"
+                                  ToolTip.Tip="Select how the app handles overload when the buffer is full." >
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Message delay (ms)"
+                               ToolTip.Tip="Delay between notifying message handlers. Higher values reduce UI pressure but increase latency." />
+                        <NumericUpDown Grid.Column="1"
+                                       Minimum="0"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.MessageProcessingDelayMs}"
+                                       ToolTip.Tip="0 disables throttling. Used to pace incoming message handling." />
+
+                        <Label Grid.Column="3"
+                               Classes="caption"
+                               Content="Packet delay (ms)"
+                               ToolTip.Tip="Delay between packet inspection callbacks. Helps avoid flooding inspectors." />
+                        <NumericUpDown Grid.Column="4"
+                                       Minimum="0"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.PacketInspectionDelayMs}"
+                                       ToolTip.Tip="0 disables throttling. Used to pace packet inspection handling." />
+
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Message buffer (ms)"
+                               ToolTip.Tip="Reactive stream buffer window for message subscribers (Inflight, Topic Explorer, Log). Batches arriving items before pushing to the UI." />
+                        <NumericUpDown Grid.Column="1"
+                                       Minimum="50"
+                                       Maximum="5000"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.MessageBufferMs}"
+                                       ToolTip.Tip="Lower values increase UI responsiveness; higher values reduce render pressure at high throughput." />
+
+                        <Label Grid.Column="3"
+                               Classes="caption"
+                               Content="Packet buffer (ms)"
+                               ToolTip.Tip="Reactive stream buffer window for the packet inspector. Batches packet events before pushing to the UI." />
+                        <NumericUpDown Grid.Column="4"
+                                       Minimum="50"
+                                       Maximum="5000"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.PacketBufferMs}"
+                                       ToolTip.Tip="Lower values increase UI responsiveness; higher values reduce render pressure at high throughput." />
+
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Max UI items"
+                               ToolTip.Tip="Maximum items kept in each UI-bound list (Inflight, Packet Inspector, Log). When exceeded the oldest items are trimmed in batches." />
+                        <NumericUpDown Grid.Column="1"
+                                       Minimum="1000"
+                                       Maximum="1000000"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.MaxUiItems}"
+                                       ToolTip.Tip="Higher values keep more history but consume more memory and slow down the UI." />
+
+                        <Label Grid.Column="3"
+                               Classes="caption"
+                               Content="Trim batch size"
+                               ToolTip.Tip="Number of oldest items removed at once when a UI list exceeds the maximum. Larger batches reduce trim frequency but cause bigger single-frame layout work." />
+                        <NumericUpDown Grid.Column="4"
+                                       Minimum="1"
+                                       Maximum="10000"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.TrimBatchSize}"
+                                       ToolTip.Tip="Removing items in batches avoids per-item layout churn." />
+
+                        <Label Grid.Column="0"
+                               controls:AutoGrid.IsNextRow="True"
+                               Classes="caption"
+                               Content="Counter update (ms)"
+                               ToolTip.Tip="How often the status-bar counters (Received, Notified, Buffered, Dropped) refresh. Uses Observable.Interval on the UI thread." />
+                        <NumericUpDown Grid.Column="1"
+                                       Minimum="50"
+                                       Maximum="5000"
+                                       Classes="value"
+                                       Value="{Binding MessageProcessingOptions.CounterUpdateMs}"
+                                       ToolTip.Tip="Lower values give faster visual feedback; higher values reduce UI thread work." />
+                    </controls:AutoGrid>
+                </StackPanel>
+            </Expander>
+       
         </StackPanel>
     </ScrollViewer>
 </UserControl>

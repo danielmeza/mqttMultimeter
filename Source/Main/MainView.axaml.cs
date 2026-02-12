@@ -1,5 +1,6 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 
@@ -52,6 +53,22 @@ public sealed partial class MainView : UserControl
         }
 
         viewModel.ActivatePageRequested += OnActivatePageRequested;
+    }
+
+    async void OnConnectionToggleClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var viewModel = (MainViewModel?)DataContext;
+        if (viewModel == null)
+        {
+            return;
+        }
+
+        await viewModel.ToggleConnectionAsync().ConfigureAwait(true);
+
+        if (sender is ToggleButton toggleButton)
+        {
+            toggleButton.IsChecked = viewModel.ConnectionPage.IsConnected;
+        }
     }
 
     void OnUpdateAvailableNotificationPressed(object? _, PointerPressedEventArgs __)

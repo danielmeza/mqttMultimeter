@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using DynamicData;
@@ -28,6 +29,14 @@ public sealed class TopicExplorerTreeNodeViewModel : BaseViewModel
     }
 
     public event EventHandler? MessagesChanged;
+
+    /// <summary>
+    /// O(1) child lookup by segment name.  Used by the stream-thread trie walk
+    /// to resolve / create child nodes without accessing SourceList.Items.
+    /// Thread-safe because it may be read from the stream thread while the UI
+    /// thread commits changes.
+    /// </summary>
+    public ConcurrentDictionary<string, TopicExplorerTreeNodeViewModel> ChildLookup { get; } = new();
 
     public bool IsExpanded
     {

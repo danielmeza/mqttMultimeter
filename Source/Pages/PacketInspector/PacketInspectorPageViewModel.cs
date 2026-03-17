@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Threading;
 using DynamicData;
 using mqttMultimeter.Common;
 using mqttMultimeter.Extensions;
@@ -86,7 +87,7 @@ public sealed class PacketInspectorPageViewModel : BasePageViewModel
 
     public void ClearItems()
     {
-        _number = 0;
+        Interlocked.Exchange(ref _number, 0);
         _packetsSource.Clear();
     }
 
@@ -120,7 +121,7 @@ public sealed class PacketInspectorPageViewModel : BasePageViewModel
 
     PacketViewModel MapPacket(InspectMqttPacketEventArgs args) => new()
     {
-        Number = _number++,
+        Number = Interlocked.Increment(ref _number) - 1,
         Type = GetControlPacketType(args.Buffer[0]),
         Data = args.Buffer,
         Length = args.Buffer.Length,

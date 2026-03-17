@@ -53,11 +53,13 @@ public sealed class InflightPageItemExportService
             return;
         }
 
+        var messages = new List<MqttApplicationMessage>(export.Messages.Count);
         foreach (var message in export.Messages)
         {
-            await Task.Yield(); // Yield so the UI can switch priority to the user interaction. 
-            inflightPage.AppendMessage(CreateMessage(message));
+            messages.Add(CreateMessage(message));
         }
+
+        inflightPage.ImportMessages(messages);
     }
 
     static MqttApplicationMessage CreateMessage(InflightPageExportMessage model)

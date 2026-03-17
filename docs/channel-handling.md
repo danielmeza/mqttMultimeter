@@ -171,10 +171,10 @@ Use the status bar counters to monitor:
 - Buffered: messages currently queued.
 - Dropped: messages discarded due to bounded/full-mode settings.
 
-Counters are refreshed via an `Observable.Interval` on the UI thread. The default
+Counters are refreshed via a `DispatcherTimer` on the UI thread. The default
 interval is 200 ms (configurable per profile via **Counter update (ms)**). This is
 fast enough for visual feedback while avoiding unnecessary UI thread wake-ups. The
-observable is created on connect and disposed on disconnect.
+timer is created on connect and stopped/disposed on disconnect.
 
 If buffered keeps growing or drops are increasing, consider adjusting capacity,
 full mode, or delays.
@@ -215,8 +215,9 @@ To prevent accidental disconnections:
 3. **Non-blocking writes.** The handler uses `TryWrite`, which never blocks. If the
    channel is full, the packet is simply dropped.
 
-4. **Drops are logged.** When a packet cannot be written because the channel is
-   full, the drop is counted and logged.
+4. **Drops are logged.** When packet enqueueing fails due to overload, the drop is
+    logged. Note that the status bar **Dropped** counter tracks message-channel drops;
+    packet-inspection drops are not included in that counter.
 
 ### MQTTnet source code analysis
 

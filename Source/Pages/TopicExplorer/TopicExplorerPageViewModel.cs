@@ -25,6 +25,15 @@ namespace mqttMultimeter.Pages.TopicExplorer;
 
 public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
 {
+    /// <summary>
+    /// Result of <see cref="PrepareBatchInserts"/> (Phase 1, stream thread).
+    /// Carries deferred SourceList additions and the leaf-node / message pairs
+    /// for <see cref="FlushBatchInserts"/> (Phase 2, UI thread).
+    /// </summary>
+    sealed record BatchInsertResult(
+        Dictionary<SourceList<TopicExplorerTreeNodeViewModel>, List<TopicExplorerTreeNodeViewModel>> PendingAdds,
+        List<(TopicExplorerTreeNodeViewModel Node, MqttApplicationMessage Message)> MessageUpdates);
+
     readonly MqttClientService _mqttClientService;
     readonly ILogger<TopicExplorerPageViewModel> _logger;
 
@@ -134,10 +143,7 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
 
     public void CollapseAll()
     {
-        foreach (var node in Nodes)
-        {
-            SetExpandedState(node, false);
-        }
+        _treeSource.CollapseAll();
     }
 
     public void DeleteRetainedMessage(InflightPageItemViewModel item)
@@ -175,7 +181,7 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
             return;
         }
 
-        SetExpandedState(_selectedNode, true);
+        ExpandSubtree(_selectedNode);
     }
 
     public void RepeatMessage(InflightPageItemViewModel item)
@@ -236,16 +242,14 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
     /// then resolves / creates nodes via
     /// <see cref="ResolveOrCreateLeaf"/>.
     /// </summary>
-    (Dictionary<SourceList<TopicExplorerTreeNodeViewModel>, List<TopicExplorerTreeNodeViewModel>> PendingAdds,
-     List<(TopicExplorerTreeNodeViewModel Node, MqttApplicationMessage Message)> MessageUpdates)
-    PrepareBatchInserts(IList<MqttApplicationMessage> batch)
+    BatchInsertResult PrepareBatchInserts(IList<MqttApplicationMessage> batch)
     {
         var pendingAdds = new Dictionary<SourceList<TopicExplorerTreeNodeViewModel>, List<TopicExplorerTreeNodeViewModel>>();
         var messageUpdates = new List<(TopicExplorerTreeNodeViewModel, MqttApplicationMessage)>(batch.Count);
 
         if (!_isRecordingEnabled)
         {
-            return (pendingAdds, messageUpdates);
+            return new(pendingAdds, messageUpdates);
         }
 
         // Group by first segment so all topics under the same root are
@@ -274,7 +278,7 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
             }
         }
 
-        return (pendingAdds, messageUpdates);
+        return new(pendingAdds, messageUpdates);
     }
 
     /// <summary>
@@ -282,9 +286,7 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
     /// Flushes deferred SourceList adds via <c>Edit()</c> and applies
     /// message data to target nodes.
     /// </summary>
-    void FlushBatchInserts(
-        (Dictionary<SourceList<TopicExplorerTreeNodeViewModel>, List<TopicExplorerTreeNodeViewModel>> PendingAdds,
-         List<(TopicExplorerTreeNodeViewModel Node, MqttApplicationMessage Message)> MessageUpdates) result)
+    void FlushBatchInserts(BatchInsertResult result)
     {
         // Flush all pending adds with a single changeset per SourceList.
         foreach (var (sourceList, newNodes) in result.PendingAdds)
@@ -364,13 +366,34 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
         _streamCleanup = new CompositeDisposable();
     }
 
-    static void SetExpandedState(TopicExplorerTreeNodeViewModel node, bool value)
+    /// <summary>
+    /// Recursively expands a node's <see cref="HierarchicalRow{TModel}"/> and all
+    /// descendant rows via the TreeDataGrid source API.  Depth-first traversal
+    /// ensures each parent row is expanded (making its children visible in
+    /// <see cref="HierarchicalTreeDataGridSource{TModel}.Rows"/>) before we
+    /// attempt to expand the children.
+    /// </summary>
+    void ExpandSubtree(TopicExplorerTreeNodeViewModel node)
     {
-        node.IsExpanded = value;
-
-        foreach (var childNode in node.Nodes)
+        // Find the row for this model in the flattened, currently-visible rows.
+        for (var i = 0; i < _treeSource.Rows.Count; i++)
         {
-            SetExpandedState(childNode, value);
+            if (_treeSource.Rows[i] is HierarchicalRow<TopicExplorerTreeNodeViewModel> row
+                && row.Model == node)
+            {
+                if (!row.IsExpanded && node.Nodes.Count > 0)
+                {
+                    row.IsExpanded = true;
+                }
+
+                break;
+            }
+        }
+
+        // After expanding, child rows are now visible — recurse into them.
+        foreach (var child in node.Nodes)
+        {
+            ExpandSubtree(child);
         }
     }
     

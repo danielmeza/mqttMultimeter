@@ -477,6 +477,17 @@ items in seconds, causing:
 - GC pressure as the large object heap grows.
 - UI freezes when the queue backlog finally processes.
 
+## Field findings: UI item count dominates responsiveness
+
+Recent testing in this app showed a practical limit for smooth interaction:
+
+- The UI can become extremely slow when collections grow beyond about **50,000** items,
+    even with virtualization and batched updates.
+- The dominant cost shifts from ingestion to UI-side binding/layout/render churn and
+    large in-memory view-model collections.
+
+For real-time monitoring, prefer a rolling window and keep UI lists capped.
+
 ### Why low priority doesn't help (and makes it worse)
 
 You might think scheduling work at `DispatcherPriority.Background` (-2) or lower avoids problems. **It makes them worse** because:
@@ -720,11 +731,24 @@ For large trees, use `TreeDataGrid` instead.
 
 ## Recommended settings
 
-| Scenario | Bounded | Capacity | Full Mode | Msg Delay | Pkt Delay | Msg Buffer | Pkt Buffer | Counter Update |
-|----------|---------|----------|-----------|-----------|-----------|------------|------------|----------------|
-| 1K msg/s | Optional | 5,000 | Drop newest | 0-2 ms | 0-2 ms | 50 ms | 50 ms | 200 ms |
-| 5K msg/s | Yes | 20,000 | Drop newest | 2-5 ms | 2-5 ms | 150 ms | 150 ms | 200 ms |
-| 8K+ msg/s | Yes | 50,000 | Drop oldest/write | 5-10 ms | 5-10 ms | 300 ms | 300 ms | 200 ms |
+| Scenario | Bounded | Capacity | Full Mode | Msg Delay | Pkt Delay | Msg Buffer | Pkt Buffer | Max UI items | Counter Update |
+|----------|---------|----------|-----------|-----------|-----------|------------|------------|--------------|----------------|
+| 1K msg/s | Optional | 5,000 | Drop newest | 0 ms | 0 ms | 50 ms | 50 ms | 50,000 | 200 ms |
+| 5K msg/s | Yes | 20,000 | Drop newest | 0 ms | 0 ms | 150-200 ms | 150-200 ms | 50,000 | 200 ms |
+| 8K+ msg/s (real-time) | Yes | 50,000 | Drop newest | 0 ms | 0 ms | 200 ms | 200 ms | 50,000 | 200 ms |
+
+### Real-time profile (field-tested)
+
+For the best live experience (fresh data while keeping UI responsive), use:
+
+- Message delay: **0 ms**
+- Packet delay: **0 ms**
+- Message buffer: **200 ms**
+- Packet buffer: **200 ms**
+- Max UI items: **50,000**
+
+This uses reactive batch rendering for throughput and relies on rolling-window trimming
+to prevent UI degradation over long sessions.
 
 ### Throughput profiles
 
@@ -738,13 +762,16 @@ and counter refresh rate.
 | Bounded channel | No | Yes | Yes | Yes |
 | Capacity | 5,000 | 20,000 | 50,000 | 50,000 |
 | Full mode | Drop newest | Drop newest | Drop newest | Drop newest |
-| Message delay (ms) | 0 | 3 | 5 | 5 |
-| Packet delay (ms) | 0 | 3 | 5 | 5 |
-| Message buffer (ms) | 50 | 150 | 300 | 200 |
-| Packet buffer (ms) | 50 | 150 | 300 | 500 |
-| Max UI items | 150,000 | 150,000 | 150,000 | 150,000 |
-| Trim batch size | 500 | 500 | 500 | 500 |
+| Message delay (ms) | 0 | 0 | 0 | 0 |
+| Packet delay (ms) | 0 | 0 | 0 | 0 |
+| Message buffer (ms) | 50 | 150 | 200 | 200 |
+| Packet buffer (ms) | 50 | 150 | 200 | 200 |
+| Max UI items | 50,000 | 50,000 | 50,000 | 50,000 |
 | Counter update (ms) | 200 | 200 | 200 | 200 |
+
+Note: built-in profiles prioritize throughput safety for broad workloads. For
+real-time monitoring on typical desktops, switch to **Custom** and apply the
+field-tested values above (0/0 delays, 200/200 buffers, 50,000 max UI items).
 
 When **Custom** is selected, all controls are editable and you can experiment freely.
 With any preset profile the controls are read-only so the tuned values stay
@@ -975,7 +1002,7 @@ Each counter has exactly one writer, so plain `counter++` is safe (no Interlocke
 | `_notifiedMessagesCount` | Message consumer task (LongRunning) | `ConsumeReceivedMessagesAsync` loop |
 | `_droppedMessagesCount` | Channel drop callback (invoked on writer's thread) | `OnMessageDropped` |
 
-The UI reads these on a configurable `Observable.Interval` (default 200ms, set via
+The UI reads these on a configurable `DispatcherTimer` interval (default 200ms, set via
 the **Counter update (ms)** profile setting). On 64-bit systems, `long` reads/writes
 are hardware-atomic so there are no torn reads. Cache coherence ensures eventual visibility
 within the polling interval.
@@ -1049,11 +1076,11 @@ with pre-built ViewModels — all transformation work happens on consumer task t
 
 ## Tuning workflow
 
-1. Start with defaults (bounded, 200K capacity, drop newest, 5ms delays).
+1. Start with the **Custom real-time baseline** (bounded, 50K capacity, drop newest, 0ms delays, 200ms buffers, 50K max UI items).
 2. Connect and observe counters under expected load.
-3. If "Buffered" grows continuously, increase delays or reduce capacity.
+3. If "Buffered" grows continuously, increase buffer window (for example 250-300ms) before adding delays.
 4. If "Dropped" is unacceptable, increase capacity or switch to "Wait" mode.
-5. If UI is sluggish, increase delays or disable Topic Explorer recording.
+5. If UI is sluggish, reduce **Max UI items** first (keep it at or below 50K for responsive interaction), then consider larger buffers.
 6. For extreme throughput, consider sampling or aggregation patterns.
 7. Monitor the consumer task thread — if `Select(Map)` is slow (complex VM creation),
    the buffer interval may need increasing.

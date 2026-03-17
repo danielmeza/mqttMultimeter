@@ -124,7 +124,7 @@ public sealed class MessageProcessingOptionsViewModel : BaseViewModel
 
     /// <summary>
     /// Interval (ms) at which the status-bar counters (Received, Notified, Buffered, Dropped)
-    /// are refreshed via an <see cref="System.Reactive.Linq.Observable.Interval"/> observable.
+    /// are refreshed on the UI thread via a <see cref="Avalonia.Threading.DispatcherTimer"/>.
     /// Default is 200 ms which is fast enough for visual feedback without wasting UI cycles.
     /// </summary>
     public int CounterUpdateMs

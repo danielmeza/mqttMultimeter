@@ -222,7 +222,7 @@ public sealed class MqttClientService
         }
 
         _mqttClient.ApplicationMessageReceivedAsync += OnApplicationMessageReceived;
-        
+
         // Always register the packet inspector BEFORE connecting.
         // 
         // IMPORTANT: MQTTnet's InspectPacketAsync event is not safe to subscribe/unsubscribe
@@ -395,7 +395,12 @@ public sealed class MqttClientService
     {
         // Single writer thread - plain increment is safe
         _receivedMessagesCount++;
-
+        // Auto acknowledge is disabled to allow the message to be processed in the channel 
+        // and observable stream before it is acknowledged.
+        // When disable the client will not automatically send PUBACK/PUBREC
+        // if the AcknowledgeAsync is not called, the broker will consider the message 
+        // as not acknowledged and may redeliver it based on its retry policy.
+        eventArgs.AutoAcknowledge = false;
         var channel = _receivedMessagesChannel;
         if (channel == null)
         {
@@ -439,13 +444,13 @@ public sealed class MqttClientService
         {
             return Task.CompletedTask;
         }
-        
+
         // IMPORTANT: Never await/block here! This method is called on the MQTT client's
         // internal packet processing thread. Blocking here will prevent keep-alive packets
         // from being processed, causing connection timeouts and disconnections.
         // Always use TryWrite for packet inspection to avoid blocking.
         channel.Writer.TryWrite(eventArgs);
-        
+
         return Task.CompletedTask;
     }
 
@@ -461,6 +466,8 @@ public sealed class MqttClientService
 
                     // Push into the hot observable stream for all reactive subscribers
                     _messageSubject?.OnNext(eventArgs);
+
+                    await eventArgs.AcknowledgeAsync(cancellationToken).ConfigureAwait(false);
 
                     var delayMs = _messageProcessingDelayMs;
                     if (delayMs > 0)
@@ -487,7 +494,7 @@ public sealed class MqttClientService
                 {
                     // Push into the hot observable stream for all reactive subscribers
                     _packetSubject?.OnNext(eventArgs);
-                    
+
                     // Wait here to avoid flooding the message inspectors with packets when they are not able to keep up.
                     // This will also increase the responsiveness of the UI when inspecting packets.
                     var delayMs = _packetInspectionDelayMs;
@@ -539,7 +546,7 @@ public sealed class MqttClientService
                 SingleReader = true,
                 SingleWriter = true
             };
-            
+
             // Packet inspection channel uses thread pool offloading, so multiple threads may write
             var boundedInspectionOptions = new BoundedChannelOptions(Math.Max(1, options.Capacity))
             {
@@ -558,7 +565,7 @@ public sealed class MqttClientService
                 SingleReader = true,
                 SingleWriter = true
             };
-            
+
             // Packet inspection channel uses thread pool offloading, so multiple threads may write
             var unboundedInspectionOptions = new UnboundedChannelOptions
             {
@@ -571,12 +578,12 @@ public sealed class MqttClientService
         }
 
         var cancellationToken = _channelCancellationTokenSource.Token;
-        
+
         _receivedMessagesTask = Task.Factory.StartNew(() => ConsumeReceivedMessagesAsync(_receivedMessagesChannel.Reader, cancellationToken),
             cancellationToken,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default).Unwrap();
-        
+
         _packetInspectionTask = Task.Factory.StartNew(() => ConsumePacketInspectionsAsync(_packetInspectionChannel.Reader, cancellationToken),
             cancellationToken,
             TaskCreationOptions.LongRunning,
@@ -591,7 +598,7 @@ public sealed class MqttClientService
             return;
         }
 
-         await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
+        await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
         _receivedMessagesChannel?.Writer.TryComplete();
         _packetInspectionChannel?.Writer.TryComplete();
         var receivedMessagesTask = _receivedMessagesTask;
@@ -627,12 +634,12 @@ public sealed class MqttClientService
         _channelCancellationTokenSource = null;
         cancellationTokenSource.Dispose();
     }
-    
-    
+
+
     Task OnDisconnected(MqttClientDisconnectedEventArgs eventArgs)
     {
         Dispatcher.UIThread.Post((state) =>
-        {   
+        {
             var args = (MqttClientDisconnectedEventArgs)state!;
             Disconnected?.Invoke(this, args);
         }, eventArgs);
@@ -726,7 +733,7 @@ internal static partial class MqttClientServiceExtensions
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Message {PacketIdentifier} was dropped in the received messages channel. This can happen when the channel is full and messages are being produced faster than they are being consumed.")]
     public static partial void LogReceivedMessageDropped(this ILogger<MqttClientService> logger, ushort packetIdentifier);
-    
+
     [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Error in application message received event handler.")]
     public static partial void LogApplicationMessageReceivedError(this ILogger<MqttClientService> logger, Exception exception);
 

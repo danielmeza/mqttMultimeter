@@ -79,18 +79,17 @@ public sealed class InflightPageViewModel : BasePageViewModel
 
     public ReadOnlyObservableCollection<InflightPageItemViewModel> Items => _items;
 
-    public void AppendMessage(MqttApplicationMessage message)
+    public void ImportMessages(IList<MqttApplicationMessage> messages)
     {
-        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(messages);
 
-        var newItem = CreateItemViewModel(message);
- 
-        _itemsSource.Add(newItem);
-        var overflow = _itemsSource.Count - _mqttClientService.MaxUiItems;
-        if (overflow > 0)
+        var items = new List<InflightPageItemViewModel>(messages.Count);
+        foreach (var message in messages)
         {
-            _itemsSource.RemoveRange(0, overflow);
+            items.Add(CreateItemViewModel(message));
         }
+
+        _itemsSource.AddRangeAndTrim(items, _mqttClientService.MaxUiItems);
     }
 
     public void ClearItems()

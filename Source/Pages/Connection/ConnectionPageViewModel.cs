@@ -11,12 +11,9 @@ using ReactiveUI;
 
 namespace mqttMultimeter.Pages.Connection;
 
-public sealed class ConnectionPageViewModel : BasePageViewModel
+public class ConnectionPageViewModel : BasePageViewModel
 {
     readonly MqttClientService _mqttClientService;
-
-    bool _isConnected;
-    bool _isConnecting;
 
     public ConnectionPageViewModel(MqttClientService mqttClientService, StateService stateService)
     {
@@ -24,7 +21,7 @@ public sealed class ConnectionPageViewModel : BasePageViewModel
 
         ArgumentNullException.ThrowIfNull(stateService);
 
-        var timer = new DispatcherTimer(TimeSpan.FromSeconds(0.1), DispatcherPriority.Normal, CheckConnection);
+        var timer = new DispatcherTimer(TimeSpan.FromSeconds(0.5), DispatcherPriority.Normal, CheckConnection);
         timer.Start();
 
         stateService.Saving += SaveState;
@@ -32,8 +29,11 @@ public sealed class ConnectionPageViewModel : BasePageViewModel
 
         mqttClientService.Disconnected += (_, e) =>
         {
-            DisconnectedReason.Reason = e.Reason.ToString();
-            DisconnectedReason.AdditionalInformation = e.ReasonString;
+            Dispatcher.UIThread.Post(() =>
+            {
+                DisconnectedReason.Reason = e.Reason.ToString();
+                DisconnectedReason.AdditionalInformation = e.ReasonString;
+            });
         };
     }
 
@@ -41,10 +41,10 @@ public sealed class ConnectionPageViewModel : BasePageViewModel
 
     public bool IsConnected
     {
-        get => _isConnected;
+        get;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref _isConnected, value) != value)
+            if (this.RaiseAndSetIfChanged(ref field, value) != value)
             {
                 return;
             }
@@ -55,10 +55,10 @@ public sealed class ConnectionPageViewModel : BasePageViewModel
 
     public bool IsConnecting
     {
-        get => _isConnecting;
+        get;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref _isConnecting, value) != value)
+            if (this.RaiseAndSetIfChanged(ref field, value) != value)
             {
                 return;
             }

@@ -52,11 +52,12 @@ public sealed class App : Application
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         Dispatcher.UIThread.UnhandledException += OnUnhandledException;
         RxApp.DefaultExceptionHandler = new LogObserverExceptionHandler(_logger);
-        
+        #if DEBUG
         this.AttachDeveloperTools(o =>
         {
             o.AddMicrosoftLoggerObservable(_loggerFactory);
         });
+        #endif
         
         var serviceProvider = new ServiceCollection()
             // Services

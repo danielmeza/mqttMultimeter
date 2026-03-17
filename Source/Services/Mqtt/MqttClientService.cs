@@ -136,10 +136,9 @@ public class MqttClientService
 
         if (_mqttClient != null)
         {
-            _mqttClient.ApplicationMessageReceivedAsync -= OnApplicationMessageReceived;
-            _mqttClient.InspectPacketAsync -= OnInspectPacket;
-            _mqttClient.DisconnectedAsync -= OnDisconnected;
+            DetachClientHandlers();
 
+            StopReactiveStreams();
             await StopChannelProcessingAsync().ConfigureAwait(false);
 
             await _mqttClient.DisconnectAsync();
@@ -148,9 +147,6 @@ public class MqttClientService
 
         _mqttClient = new MqttClientFactory(_mqttNetEventLogger).CreateMqttClient();
         _mqttClient.DisconnectedAsync += OnDisconnected;
-
-        StartChannelProcessing(item.MessageProcessingOptions);
-        StartReactiveStreams();
 
         var clientOptionsBuilder = new MqttClientOptionsBuilder().WithTimeout(TimeSpan.FromSeconds(item.ServerOptions.CommunicationTimeout))
             .WithProtocolVersion(item.ServerOptions.SelectedProtocolVersion.Value)
@@ -223,12 +219,15 @@ public class MqttClientService
         _mqttClient.InspectPacketAsync += OnInspectPacket;
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(item.ServerOptions.CommunicationTimeout));
+        MqttClientConnectResult result;
         try
         {
-            return await _mqttClient.ConnectAsync(clientOptionsBuilder.Build(), timeout.Token);
+            result = await _mqttClient.ConnectAsync(clientOptionsBuilder.Build(), timeout.Token);
         }
         catch (OperationCanceledException ex)
         {
+            DetachClientHandlers();
+
             if (timeout.IsCancellationRequested)
             {
                 throw new MqttCommunicationTimedOutException(ex);
@@ -236,6 +235,19 @@ public class MqttClientService
 
             throw;
         }
+        catch
+        {
+            DetachClientHandlers();
+            throw;
+        }
+
+        // Start channels and reactive streams only after a successful connection.
+        // This ensures that consumer tasks, subjects, and subscriber pipelines are
+        // never left running when no MQTT session exists.
+        StartChannelProcessing(item.MessageProcessingOptions);
+        StartReactiveStreams();
+
+        return result;
     }
 
     public async Task Disconnect()
@@ -646,9 +658,9 @@ public class MqttClientService
             {
                 await Task.WhenAll(tasks).ConfigureAwait(false);
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException)
             {
-                _logger.LogCritical(e, "Channel processing tasks were canceled.");
+                // Expected during normal shutdown after CancelAsync().
             }
         }
 
@@ -741,6 +753,18 @@ public class MqttClientService
         MessageStreamDisconnected?.Invoke();
         PacketStreamDisconnected?.Invoke();
         LogStreamDisconnected?.Invoke();
+    }
+
+    void DetachClientHandlers()
+    {
+        if (_mqttClient == null)
+        {
+            return;
+        }
+
+        _mqttClient.ApplicationMessageReceivedAsync -= OnApplicationMessageReceived;
+        _mqttClient.InspectPacketAsync -= OnInspectPacket;
+        _mqttClient.DisconnectedAsync -= OnDisconnected;
     }
 
     void ThrowIfNotConnected()

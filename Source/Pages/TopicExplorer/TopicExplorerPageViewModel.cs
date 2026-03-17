@@ -119,7 +119,7 @@ public sealed partial class TopicExplorerPageViewModel : BasePageViewModel
 
     /// <summary>
     /// The HierarchicalTreeDataGridSource backing the TreeDataGrid control.
-    /// Rebuilt when root nodes change so the virtualized tree stays in sync.
+    /// Observes changes to the root nodes so the virtualized tree stays in sync.
     /// </summary>
     public HierarchicalTreeDataGridSource<TopicExplorerTreeNodeViewModel> TreeSource
     {

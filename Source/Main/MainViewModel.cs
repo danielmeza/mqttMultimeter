@@ -1,4 +1,6 @@
 using System;
+using System.Reactive;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using mqttMultimeter.Common;
@@ -57,9 +59,13 @@ public sealed class MainViewModel : BaseViewModel
         // The observable is created on connect and disposed on disconnect.
         _mqttClientService.MessageStreamConnected += OnCounterStreamConnected;
         _mqttClientService.MessageStreamDisconnected += OnCounterStreamDisconnected;
+
+        ToggleConnectionCommand = ReactiveCommand.CreateFromTask(ToggleConnectionAsync);
     }
 
     public event EventHandler? ActivatePageRequested;
+
+    public ReactiveCommand<Unit, Unit> ToggleConnectionCommand { get; }
 
     public ConnectionPageViewModel ConnectionPage { get; }
 

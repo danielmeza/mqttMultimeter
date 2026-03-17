@@ -348,7 +348,7 @@
                                controls:AutoGrid.IsNextRow="True"
                                Classes="caption"
                                Content="Counter update (ms)"
-                               ToolTip.Tip="How often the status-bar counters (Received, Notified, Buffered, Dropped) refresh. Uses Observable.Interval on the UI thread." />
+                               ToolTip.Tip="How often the status-bar counters (Received, Notified, Buffered, Dropped) refresh. Uses a DispatcherTimer on the UI thread." />
                         <NumericUpDown Grid.Column="1"
                                        Minimum="50"
                                        Maximum="5000"

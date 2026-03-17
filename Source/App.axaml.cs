@@ -152,6 +152,7 @@ public sealed class App : Application
     {
         _logger.LogError(e.Exception, "Unhandled exception");
         ShowException(e.Exception);
+        e.Handled = true;
     }
 
     void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)

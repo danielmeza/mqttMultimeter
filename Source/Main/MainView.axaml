@@ -153,11 +153,11 @@
                                           HorizontalContentAlignment="Center"
                                           IsEnabled="{Binding !ConnectionPage.IsConnecting}"
                                           IsChecked="{Binding ConnectionPage.IsConnected, Mode=OneWay}"
-                                          Click="OnConnectionToggleClicked">
+                                          Command="{Binding ToggleConnectionCommand}">
                                 <Grid ColumnDefinitions="Auto,Auto"
                                       HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal"
-                                                IsVisible="{Binding #ConnectionToggle.IsChecked}">
+                                                IsVisible="{Binding ConnectionPage.IsConnected}">
                                         <PathIcon Data="{StaticResource plug_disconnected_regular}"
                                                   Width="14"
                                                   Height="14" />
@@ -165,7 +165,7 @@
                                                    Text="Disconnect" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal"
-                                                IsVisible="{Binding !#ConnectionToggle.IsChecked}">
+                                                IsVisible="{Binding !ConnectionPage.IsConnected}">
                                         <PathIcon Data="{StaticResource checkmark_circle_regular}"
                                                   Width="14"
                                                   Height="14" />

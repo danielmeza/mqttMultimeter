@@ -158,7 +158,8 @@ public sealed class App : Application
     void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         _logger.LogError(e.Exception, "Unobserved task exception");
-        ShowException(e.Exception);
+        e.SetObserved();
+        Dispatcher.UIThread.Post(() => ShowException(e.Exception));
     }
 
 }

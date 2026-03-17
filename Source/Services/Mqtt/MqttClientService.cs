@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Security;
 using System.Reactive.Linq;
@@ -385,12 +386,16 @@ public class MqttClientService
                 {
                     _enqueuedMessagesCount++;
                 }
+
+                // Yield here to allow the MQTT client's internal processing thread to continue
+                // and avoid potential congestion when processing messages faster than they can be consumed.
+                // await Task.Yield();
             }
         }
         catch (OperationCanceledException e)
         {
             // This can happen when the channel is completed while we are trying to write to it.
-            _logger.LogWarning(e, "Failed to write received message to channel because the operation was canceled.");
+            _logger.LogReceivedMessageWriteFailed(e);
         }
     }
 
@@ -413,8 +418,13 @@ public class MqttClientService
         // internal packet processing thread. Blocking here will prevent keep-alive packets
         // from being processed, causing connection timeouts and disconnections.
         // Always use TryWrite for packet inspection to avoid blocking.
-        channel.Writer.TryWrite(eventArgs);
-     
+        // Even when the channel is full, we want to return immediately and drop the packet inspection data
+        if(!channel.Writer.TryWrite(eventArgs))
+        {
+            // This can happen when the channel is completed while we are trying to write to it.
+            _logger.LogPacketInspectionWriteFailed();
+        }
+        return Task.CompletedTask;
     }
 
     static void SetupTls(ConnectionItemViewModel source, MqttClientOptionsBuilder target)
@@ -437,7 +447,7 @@ public class MqttClientService
                     o.WithIgnoreCertificateRevocationErrors();
                 }
 
-                            if (!string.IsNullOrEmpty(source.SessionOptions.CertificatePath))
+                if (!string.IsNullOrEmpty(source.SessionOptions.CertificatePath))
                 {
                     X509Certificate2Collection certificates = new();
 
@@ -523,7 +533,7 @@ public class MqttClientService
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogWarning(ex, "Received messages channel processing was canceled.");
+            _logger.LogPacketInspectionProcessingCanceled(ex);
         }
     }
 
@@ -731,7 +741,7 @@ public class MqttClientService
         MessageStreamDisconnected?.Invoke();
         PacketStreamDisconnected?.Invoke();
         LogStreamDisconnected?.Invoke();
-    }  
+    }
 
     void ThrowIfNotConnected()
     {
@@ -755,5 +765,15 @@ internal static partial class MqttClientServiceExtensions
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "Packet inspection was dropped in the channel. This can happen when the channel is full and packets are being produced faster than they are being consumed.")]
     public static partial void LogPacketInspectionDropped(this ILogger<MqttClientService> logger);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "Failed to write received message to channel because the operation was canceled.")]
+    public static partial void LogReceivedMessageWriteFailed(this ILogger<MqttClientService> logger, Exception exception);
+
+    [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Failed to write packet inspection event to channel because the channel is full or completed.")]
+    public static partial void LogPacketInspectionWriteFailed(this ILogger<MqttClientService> logger);
+
+    [LoggerMessage(EventId = 6, Level = LogLevel.Warning, Message = "Packet inspection channel processing was canceled.")]
+    public static partial void LogPacketInspectionProcessingCanceled(this ILogger<MqttClientService> logger, Exception exception);
+
 }
 

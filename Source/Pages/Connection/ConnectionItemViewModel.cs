@@ -26,6 +26,8 @@ public sealed class ConnectionItemViewModel : BaseViewModel
 
     public ConnectResponseViewModel Response { get; } = new();
 
+    public MessageProcessingOptionsViewModel MessageProcessingOptions { get; } = new();
+
     public ServerOptionsViewModel ServerOptions { get; } = new();
 
     public SessionOptionsViewModel SessionOptions { get; } = new();

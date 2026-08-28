@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -65,35 +66,33 @@ public sealed partial class InflightPageView : UserControl
         });
     }
 
-    void OnImportItems(object? _, RoutedEventArgs __)
+    // It is safe to use async void here, because this is an event handler and we catch all exceptions.
+    async void OnImportItems(object? _, RoutedEventArgs __)
     {
-        Dispatcher.UIThread.InvokeAsync(async () =>
+        try
         {
-            try
+            var filePickerOptions = new FilePickerOpenOptions
             {
-                var filePickerOptions = new FilePickerOpenOptions
-                {
-                    AllowMultiple = false,
-                    Title = ExportDialogTitle,
-                    FileTypeFilter = ExportDialogFilter
-                };
+                AllowMultiple = false,
+                Title = ExportDialogTitle,
+                FileTypeFilter = ExportDialogFilter
+            };
 
-                var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(filePickerOptions);
-                if (files.Count == 0)
-                {
-                    return;
-                }
+            var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(filePickerOptions);
+            if (files.Count == 0)
+            {
+                return;
+            }
 
-                await ((InflightPageViewModel)DataContext!).ImportItems(files[0].Path.LocalPath);
-            }
-            catch (FileNotFoundException)
-            {
-                // Ignore this case!
-            }
-            catch (Exception exception)
-            {
-                App.ShowException(exception);
-            }
-        });
+            await((InflightPageViewModel)DataContext!).ImportItems(files[0].Path.LocalPath);
+        }
+        catch (FileNotFoundException)
+        {
+            // Ignore this case!
+        }
+        catch (Exception exception)
+        {
+            App.ShowException(exception);
+        }
     }
 }

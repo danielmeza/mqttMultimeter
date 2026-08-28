@@ -21,7 +21,8 @@
 
                 <!-- The Enable/Disable button. -->
                 <ToggleButton Classes="tool_bar_button"
-                              IsChecked="{CompiledBinding IsRecordingEnabled}"
+                              IsChecked="{CompiledBinding IsRecordingEnabled, Mode=OneWay}"
+                              Command="{CompiledBinding StartStopRecording, Mode=OneTime}"
                               ToolTip.Tip="Enable or disable recording">
                     <PathIcon Data="{StaticResource record_regular}" />
                 </ToggleButton>

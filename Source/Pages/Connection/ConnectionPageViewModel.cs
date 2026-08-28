@@ -42,14 +42,34 @@ public class ConnectionPageViewModel : BasePageViewModel
     public bool IsConnected
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set
+        {
+            if (this.RaiseAndSetIfChanged(ref field, value) != value)
+            {
+                return;
+            }
+            this.RaisePropertyChanged(nameof(CanConnect));
+            this.RaisePropertyChanged(nameof(CanDisconnect));
+        }
     }
 
     public bool IsConnecting
     {
         get;
-        private set => this.RaiseAndSetIfChanged(ref field, value);
+        private set
+        {
+            if (this.RaiseAndSetIfChanged(ref field, value) != value)
+            {
+                return;
+            }
+            this.RaisePropertyChanged(nameof(CanConnect));
+            this.RaisePropertyChanged(nameof(CanDisconnect));
+        }
     }
+
+    public bool CanConnect => !IsConnecting && !IsConnected;
+
+    public bool CanDisconnect => !IsConnecting && IsConnected;
 
     public PageItemsViewModel<ConnectionItemViewModel> Items { get; } = new();
 
@@ -70,6 +90,11 @@ public class ConnectionPageViewModel : BasePageViewModel
 
     public async Task Connect(ConnectionItemViewModel item)
     {
+        if (!CanConnect)
+        {
+            return;
+        }
+
         try
         {
             IsConnecting = true;
@@ -77,7 +102,11 @@ public class ConnectionPageViewModel : BasePageViewModel
             OverlayContent = ProgressIndicatorViewModel.Create($"Connecting with '{item.ServerOptions.Host}'...");
 
             var response = await _mqttClientService.Connect(item);
+            
             item.Response.ApplyResponse(response);
+
+            // Immediately update connection state
+            IsConnected = _mqttClientService.IsConnected;
 
             DisconnectedReason.Clear();
         }
@@ -85,6 +114,7 @@ public class ConnectionPageViewModel : BasePageViewModel
         {
             // Ensure proper UI state before showing the exception.
             IsConnecting = false;
+            IsConnected = false;
 
             App.ShowException(exception);
         }
@@ -97,9 +127,16 @@ public class ConnectionPageViewModel : BasePageViewModel
 
     public async Task Disconnect(ConnectionItemViewModel item)
     {
+        if (!CanDisconnect)
+        {
+            return;
+        }
+
         try
         {
             await _mqttClientService.Disconnect();
+            // Immediately update connection state
+            IsConnected = false;
         }
         catch (Exception exception)
         {

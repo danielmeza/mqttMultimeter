@@ -16,8 +16,9 @@
 
             <!-- The Enable/Disable button -->
             <ToggleButton Classes="tool_bar_button"
-                          IsChecked="{Binding IsRecordingEnabled}"
-                          ToolTip.Tip="Enable/Disable inflight recording">
+                          IsChecked="{Binding IsRecordingEnabled, Mode=OneWay}"
+                            Command="{Binding StartStopRecording}"
+                          ToolTip.Tip="Enable/Disable logs recording">
                 <PathIcon Data="{StaticResource record_regular}" />
             </ToggleButton>
 

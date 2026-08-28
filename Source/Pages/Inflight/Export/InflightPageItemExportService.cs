@@ -53,10 +53,13 @@ public sealed class InflightPageItemExportService
             return;
         }
 
+        var messages = new List<MqttApplicationMessage>(export.Messages.Count);
         foreach (var message in export.Messages)
         {
-            await inflightPage.AppendMessage(CreateMessage(message));
+            messages.Add(CreateMessage(message));
         }
+
+        inflightPage.ImportMessages(messages);
     }
 
     static MqttApplicationMessage CreateMessage(InflightPageExportMessage model)

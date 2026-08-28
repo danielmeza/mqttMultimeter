@@ -107,7 +107,7 @@ public sealed class TopicExplorerItemViewModel : BaseViewModel
 
         if (TrackLatestMessage)
         {
-            SelectedMessage = Messages.Last();
+            SelectedMessage = viewModel;
             return;
         }
 

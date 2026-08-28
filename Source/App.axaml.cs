@@ -1,11 +1,14 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
-using mqttMultimeter.Common;
+using Microsoft.Extensions.Logging;
 using mqttMultimeter.Controls;
+using mqttMultimeter.Logging;
 using mqttMultimeter.Main;
 using mqttMultimeter.Pages.Connection;
 using mqttMultimeter.Pages.Inflight;
@@ -20,6 +23,8 @@ using mqttMultimeter.Services.Data;
 using mqttMultimeter.Services.Mqtt;
 using mqttMultimeter.Services.State;
 using mqttMultimeter.Services.Updates;
+using ReactiveUI;
+using ViewLocator = mqttMultimeter.Common.ViewLocator;
 
 namespace mqttMultimeter;
 
@@ -28,9 +33,32 @@ public sealed class App : Application
     static MainViewModel? _mainViewModel;
 
     readonly StateService _stateService;
+    
+    readonly ILoggerFactory _loggerFactory;
+    readonly ILogger<App> _logger;
 
     public App()
     {
+        
+        _loggerFactory = LoggerFactory.Create(builder =>
+        {
+#if DEBUG
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddDebug();
+#endif
+        });
+        
+        _logger = _loggerFactory.CreateLogger<App>();
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        Dispatcher.UIThread.UnhandledException += OnUnhandledException;
+        RxApp.DefaultExceptionHandler = new LogObserverExceptionHandler(_logger);
+        #if DEBUG
+        this.AttachDeveloperTools(o =>
+        {
+            o.AddMicrosoftLoggerObservable(_loggerFactory);
+        });
+        #endif
+        
         var serviceProvider = new ServiceCollection()
             // Services
             .AddSingleton<MqttClientService>()
@@ -48,6 +76,8 @@ public sealed class App : Application
             .AddSingleton<LogPageViewModel>()
             .AddSingleton<InfoPageViewModel>()
             .AddSingleton<MainViewModel>()
+            .AddTransient(typeof(ILogger<>), typeof(Logger<>))
+            .AddSingleton(_loggerFactory)
             .BuildServiceProvider();
 
         var viewLocator = new ViewLocator();
@@ -56,8 +86,11 @@ public sealed class App : Application
         serviceProvider.GetRequiredService<AppUpdateService>().EnableUpdateChecks();
         _stateService = serviceProvider.GetRequiredService<StateService>();
         _mainViewModel = serviceProvider.GetService<MainViewModel>();
+        
+       
     }
 
+    
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -113,4 +146,24 @@ public sealed class App : Application
 
         _mainViewModel!.OverlayContent = errorBox;
     }
+    
+    
+    void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        _logger.LogError(e.Exception, "Unhandled exception");
+        ShowException(e.Exception);
+        e.Handled = true;
+    }
+
+    void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        // Log only. An unobserved task exception belongs to work nobody is waiting on
+        // anymore, so the app is still healthy and there is nothing for the user to act
+        // on. Third party libraries raise these routinely - Avalonia's X11 backend for
+        // example fails to reach com.canonical.AppMenu.Registrar on desktops without a
+        // global menu - and an error overlay for each one would just interrupt the user.
+        _logger.LogError(e.Exception, "Unobserved task exception");
+        e.SetObserved();
+    }
+
 }
